@@ -272,6 +272,7 @@ let brands = [];
 let activeBrand = null;
 let activeRound = null;
 let editingRow = null;
+const roundCache = {}; // 회차별 데이터 캐시
 
 // ─── SHEET HELPERS ───
 async function api(params) {
@@ -393,6 +394,8 @@ async function deleteBrand(idx) {
     document.getElementById('tabBar').innerHTML = '';
     showContent('<div class="empty-state"><p>왼쪽에서 브랜드를 추가해주세요.</p></div>');
   }
+  // 삭제된 브랜드 캐시 제거
+  Object.keys(roundCache).forEach(k => { if (k.startsWith(brand.name + '__')) delete roundCache[k]; });
   renderBrandList();
   showToast('브랜드가 삭제됐어요.');
 }
@@ -428,12 +431,32 @@ async function saveRound() {
 }
 
 // ─── LOAD DATA ───
-async function loadRound() {
+function getCacheKey() {
+  return `${activeBrand.name}__${activeRound.name}`;
+}
+async function loadRound(forceRefresh = false) {
   if (!activeBrand || !activeRound) return;
-  showContent('<div class="loading">불러오는 중...</div>');
+  const key = getCacheKey();
   const sheetName = activeBrand.manager ? `${activeBrand.name}__${activeBrand.manager}__${activeRound.name}` : `${activeBrand.name}__${activeRound.name}`;
+
+  // 캐시 있으면 즉시 렌더
+  if (!forceRefresh && roundCache[key]) {
+    window._currentData = roundCache[key];
+    renderTable(roundCache[key]);
+    // 백그라운드에서 최신 데이터 갱신
+    sheetsGet(sheetName).then(rows => {
+      const data = rows.slice(1);
+      roundCache[key] = data;
+      if (getCacheKey() === key) { window._currentData = data; renderTable(data); }
+    });
+    return;
+  }
+
+  // 캐시 없으면 로딩 후 fetch
+  showContent('<div class="loading">불러오는 중...</div>');
   const rows = await sheetsGet(sheetName);
   const data = rows.slice(1);
+  roundCache[key] = data;
   renderTable(data);
 }
 
@@ -537,6 +560,7 @@ async function saveParticipant() {
     window._currentData[editingRow] = [name, url, status, note];
     showToast('수정됐어요!');
   }
+  roundCache[getCacheKey()] = window._currentData;
   closeParticipantModal();
   renderTable(window._currentData);
 
@@ -555,6 +579,7 @@ async function deleteRow(idx) {
   const rowNum = idx + 2;
   // 화면 먼저 즉시 반영
   window._currentData.splice(idx, 1);
+  roundCache[getCacheKey()] = window._currentData;
   renderTable(window._currentData);
   showToast('삭제됐어요.');
   // 백그라운드에서 시트 삭제
