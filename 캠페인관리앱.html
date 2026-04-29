@@ -327,11 +327,31 @@ async function init() {
       }
     }
     renderBrandList();
-    if (brands.length > 0) selectBrand(brands[0]);
-    else showContent('<div class="empty-state"><p>왼쪽에서 브랜드를 추가해주세요.</p></div>');
+    if (brands.length > 0) {
+      // 모든 브랜드 모든 회차 동시에 프리로드
+      prefetchAll(brands);
+      selectBrand(brands[0]);
+    } else {
+      showContent('<div class="empty-state"><p>왼쪽에서 브랜드를 추가해주세요.</p></div>');
+    }
   } catch(e) {
     showContent('<div class="empty-state"><p>시트를 불러오지 못했습니다. API 키와 시트 ID를 확인해주세요.</p></div>');
   }
+}
+
+async function prefetchAll(allBrands) {
+  const promises = [];
+  for (const brand of allBrands) {
+    for (const round of brand.rounds) {
+      const key = `${brand.name}__${round.name}`;
+      if (roundCache[key]) continue;
+      const sheetName = brand.manager ? `${brand.name}__${brand.manager}__${round.name}` : `${brand.name}__${round.name}`;
+      promises.push(
+        sheetsGet(sheetName).then(rows => { roundCache[key] = rows.slice(1); })
+      );
+    }
+  }
+  await Promise.all(promises);
 }
 
 // ─── BRAND ───
@@ -356,8 +376,17 @@ function selectBrand(brand) {
   document.getElementById('addBtn').style.display = '';
   renderBrandList();
   renderTabs();
-  if (activeRound) loadRound();
-  else showContent('<div class="empty-state"><p>회차를 추가해주세요.</p></div>');
+  if (activeRound) {
+    loadRound();
+    // 나머지 회차 백그라운드 프리로드
+    prefetchRounds(brand);
+  } else {
+    showContent('<div class="empty-state"><p>회차를 추가해주세요.</p></div>');
+  }
+}
+
+async function prefetchRounds(brand) {
+  prefetchAll([brand]);
 }
 function openBrandModal() { document.getElementById('brandModal').classList.remove('hidden'); document.getElementById('bName').focus(); }
 function closeBrandModal() { document.getElementById('brandModal').classList.add('hidden'); document.getElementById('bName').value = ''; document.getElementById('bManager').value = ''; }
