@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>캠페인 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e5e3dc;
+    --border-hover: #c8c5bc;
+    --text: #1a1a18;
+    --text-muted: #888880;
+    --text-hint: #b5b3aa;
+    --accent: #2563eb;
+    --accent-bg: #eff6ff;
+    --success: #16a34a;
+    --success-bg: #f0fdf4;
+    --warning: #d97706;
+    --warning-bg: #fffbeb;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --sidebar-w: 200px;
+    --topbar-h: 52px;
+    --tab-h: 40px;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; }
+
+  /* Layout */
+  .layout { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar-header { padding: 16px 16px 10px; border-bottom: 1px solid var(--border); }
+  .sidebar-header h2 { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .brand-list { flex: 1; overflow-y: auto; padding: 8px 6px; }
+  .brand-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; transition: background 0.15s; margin-bottom: 2px; }
+  .brand-item:hover { background: var(--bg); }
+  .brand-item.active { background: var(--accent-bg); }
+  .brand-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .brand-info { flex: 1; min-width: 0; }
+  .brand-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand-item.active .brand-name { color: var(--accent); }
+  .brand-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .brand-add { margin: 6px; }
+  .brand-add button { width: 100%; padding: 8px; border: 1px dashed var(--border-hover); background: none; border-radius: var(--radius); color: var(--text-muted); font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .brand-add button:hover { background: var(--bg); color: var(--text); }
+
+  /* Topbar */
+  .topbar { height: var(--topbar-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .topbar-badge { font-size: 10px; font-weight: 500; background: var(--accent-bg); color: var(--accent); padding: 2px 8px; border-radius: 20px; }
+  .topbar-right { display: flex; gap: 8px; }
+  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 13px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+  .btn:hover { border-color: var(--border-hover); background: var(--bg); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .btn-danger { background: var(--danger-bg); color: var(--danger); border-color: #fca5a5; }
+  .btn-danger:hover { background: #fee2e2; }
+
+  /* Tabs */
+  .tab-bar { height: var(--tab-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: flex-end; padding: 0 20px; gap: 2px; flex-shrink: 0; overflow-x: auto; }
+  .tab { padding: 8px 14px 9px; font-size: 12px; font-weight: 500; color: var(--text-muted); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: color 0.15s; user-select: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-add { padding: 8px 12px 9px; font-size: 12px; color: var(--text-hint); cursor: pointer; }
+  .tab-add:hover { color: var(--text-muted); }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+  .stat-value { font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; }
+  .stat-value.green { color: var(--success); }
+  .stat-value.orange { color: var(--warning); }
+
+  /* Table */
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .table-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .table-toolbar-title { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; font-weight: 600; color: var(--text-muted); text-align: left; padding: 10px 14px; background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafaf8; }
+  .td-num { font-size: 11px; color: var(--text-hint); font-weight: 500; }
+  .td-name { font-size: 13px; font-weight: 500; }
+  .td-url a { color: var(--accent); font-size: 12px; text-decoration: none; display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .td-url a:hover { text-decoration: underline; }
+  .td-url .no-url { color: var(--text-hint); font-size: 12px; }
+  .td-note { font-size: 12px; color: var(--text-muted); }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .badge-done { background: var(--success-bg); color: var(--success); }
+  .badge-pending { background: var(--warning-bg); color: var(--warning); }
+  .note-tag { display: inline-block; background: var(--bg); color: var(--text-muted); font-size: 11px; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); }
+  .td-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.15s; }
+  tr:hover .td-actions { opacity: 1; }
+
+  /* Empty */
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+  .empty-state p { font-size: 13px; margin-bottom: 12px; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 440px; box-shadow: 0 20px 40px rgba(0,0,0,0.12); }
+  .modal-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 14px; font-weight: 600; }
+  .modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+  .form-input, .form-select, .form-textarea { font-family: inherit; font-size: 13px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; width: 100%; }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-textarea { resize: vertical; min-height: 70px; }
+  .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 10px 16px; border-radius: var(--radius); font-size: 13px; z-index: 2000; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* Brand delete btn */
+  .brand-del-btn { display: none; background: none; border: none; color: var(--text-hint); font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1; border-radius: 4px; flex-shrink: 0; }
+  .brand-item:hover .brand-del-btn { display: block; }
+  .brand-del-btn:hover { color: var(--danger); background: var(--danger-bg); }
+
+  /* Color dots */
+  .dot-0 { background: #2563eb; }
+  .dot-1 { background: #d85a30; }
+  .dot-2 { background: #1d9e75; }
+  .dot-3 { background: #9333ea; }
+  .dot-4 { background: #dc2626; }
+  .dot-5 { background: #d97706; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header"><h2>브랜드</h2></div>
+    <div class="brand-list" id="brandList"></div>
+    <div class="brand-add">
+      <button onclick="openBrandModal()">+ 브랜드 추가</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title" id="topbarTitle">브랜드를 선택하세요</span>
+        <span class="topbar-badge" id="topbarBadge" style="display:none">캠페인 관리</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="exportCSV()">내보내기</button>
+        <button class="btn btn-primary" onclick="openAddModal()" id="addBtn" style="display:none">+ 참여자 추가</button>
+      </div>
+    </div>
+
+    <div class="tab-bar" id="tabBar"></div>
+
+    <div class="content" id="mainContent">
+      <div class="empty-state"><p>왼쪽에서 브랜드를 선택하거나 추가해주세요.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 참여자 추가/수정 모달 -->
+<div class="modal-overlay hidden" id="participantModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="participantModalTitle">참여자 추가</span>
+      <button class="modal-close" onclick="closeParticipantModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">이름 *</label>
+        <input class="form-input" id="pName" placeholder="참여자 이름" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">작성 URL</label>
+        <input class="form-input" id="pUrl" placeholder="https://..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">상태</label>
+        <select class="form-select" id="pStatus">
+          <option value="대기중">대기중</option>
+          <option value="완료">완료</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">특이사항</label>
+        <textarea class="form-textarea" id="pNote" placeholder="특이사항 입력..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeParticipantModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveParticipant()" id="saveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 브랜드 추가 모달 -->
+<div class="modal-overlay hidden" id="brandModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">브랜드 추가</span>
+      <button class="modal-close" onclick="closeBrandModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">브랜드 이름 *</label>
+        <input class="form-input" id="bName" placeholder="예: 직화명가" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeBrandModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveBrand()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 회차 추가 모달 -->
+<div class="modal-overlay hidden" id="roundModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">회차 추가</span>
+      <button class="modal-close" onclick="closeRoundModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">회차 이름 *</label>
+        <input class="form-input" id="rName" placeholder="예: 4회차" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeRoundModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveRound()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8C9Yhkk4HKLOJC1w3NdwgbinWBgTxp9cbrbPR_gta8XdBKdkVmlZ-Cf4XYPiVscLmKw/exec';
+
+// ─── STATE ───
+let brands = [];
+let activeBrand = null;
+let activeRound = null;
+let editingRow = null;
+
+// ─── SHEET HELPERS ───
+async function api(params) {
+  const url = SCRIPT_URL + '?' + new URLSearchParams(params).toString();
+  const r = await fetch(url);
+  return r.json();
+}
+async function sheetsGet(sheet) {
+  const j = await api({action:'getRows', sheet});
+  return j.values || [];
+}
+async function sheetsAppend(sheet, row) {
+  return api({action:'appendRow', sheet, row: JSON.stringify(row[0])});
+}
+async function sheetsUpdate(sheet, rowNum, row) {
+  return api({action:'updateRow', sheet, rowNum, row: JSON.stringify(row)});
+}
+async function deleteRowApi(sheet, rowNum) {
+  return api({action:'deleteRow', sheet, rowNum});
+}
+async function getSheetNames() {
+  const j = await api({action:'getSheets'});
+  return j.sheets || [];
+}
+async function addSheet(title) {
+  return api({action:'addSheet', sheet: title});
+}
+
+// ─── INIT ───
+async function init() {
+  showContent('<div class="loading">불러오는 중...</div>');
+  try {
+    const names = await getSheetNames();
+    // Sheet name format: "브랜드명__회차명"
+    brands = [];
+    for (const name of names) {
+      if (!name.includes('__')) continue;
+      const [bName, rName] = name.split('__');
+      let brand = brands.find(b => b.name === bName);
+      if (!brand) {
+        brand = {name: bName, rounds: [], color: brands.length % 6};
+        brands.push(brand);
+      }
+      if (!brand.rounds.find(r => r.name === rName)) {
+        brand.rounds.push({name: rName});
+      }
+    }
+    renderBrandList();
+    if (brands.length > 0) selectBrand(brands[0]);
+    else showContent('<div class="empty-state"><p>왼쪽에서 브랜드를 추가해주세요.</p></div>');
+  } catch(e) {
+    showContent('<div class="empty-state"><p>시트를 불러오지 못했습니다. API 키와 시트 ID를 확인해주세요.</p></div>');
+  }
+}
+
+// ─── BRAND ───
+function renderBrandList() {
+  const el = document.getElementById('brandList');
+  el.innerHTML = brands.map((b, i) => `
+    <div class="brand-item ${activeBrand?.name === b.name ? 'active' : ''}" onclick="selectBrand(brands[${i}])">
+      <div class="brand-dot dot-${b.color}"></div>
+      <div class="brand-info">
+        <div class="brand-name">${b.name}</div>
+        <div class="brand-sub">${b.rounds.length}회차</div>
+      </div>
+      <button class="brand-del-btn" onclick="event.stopPropagation(); deleteBrand(${i})" title="브랜드 삭제">×</button>
+    </div>
+  `).join('');
+}
+function selectBrand(brand) {
+  activeBrand = brand;
+  activeRound = brand.rounds.length > 0 ? brand.rounds[brand.rounds.length - 1] : null;
+  document.getElementById('topbarTitle').textContent = brand.name;
+  document.getElementById('topbarBadge').style.display = '';
+  document.getElementById('addBtn').style.display = '';
+  renderBrandList();
+  renderTabs();
+  if (activeRound) loadRound();
+  else showContent('<div class="empty-state"><p>회차를 추가해주세요.</p></div>');
+}
+function openBrandModal() { document.getElementById('brandModal').classList.remove('hidden'); document.getElementById('bName').focus(); }
+function closeBrandModal() { document.getElementById('brandModal').classList.add('hidden'); document.getElementById('bName').value = ''; }
+async function saveBrand() {
+  const name = document.getElementById('bName').value.trim();
+  if (!name) return;
+  if (brands.find(b => b.name === name)) { showToast('이미 존재하는 브랜드예요'); return; }
+  const sheetName = `${name}__1회차`;
+  await addSheet(sheetName);
+  await sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]);
+  const brand = {name, rounds:[{name:'1회차'}], color: brands.length % 6};
+  brands.push(brand);
+  closeBrandModal();
+  selectBrand(brand);
+  showToast('브랜드가 추가됐어요!');
+}
+
+async function deleteBrand(idx) {
+  const brand = brands[idx];
+  if (!confirm(`"${brand.name}" 브랜드와 모든 회차 데이터를 삭제할까요?\n이 작업은 되돌릴 수 없어요.`)) return;
+  // delete all sheets for this brand
+  for (const round of brand.rounds) {
+    await api({action:'deleteSheet', sheet:`${brand.name}__${round.name}`});
+  }
+  brands.splice(idx, 1);
+  if (activeBrand?.name === brand.name) {
+    activeBrand = null;
+    activeRound = null;
+    document.getElementById('topbarTitle').textContent = '브랜드를 선택하세요';
+    document.getElementById('topbarBadge').style.display = 'none';
+    document.getElementById('addBtn').style.display = 'none';
+    document.getElementById('tabBar').innerHTML = '';
+    showContent('<div class="empty-state"><p>왼쪽에서 브랜드를 추가해주세요.</p></div>');
+  }
+  renderBrandList();
+  showToast('브랜드가 삭제됐어요.');
+}
+
+// ─── ROUNDS/TABS ───
+function renderTabs() {
+  const el = document.getElementById('tabBar');
+  if (!activeBrand) { el.innerHTML = ''; return; }
+  el.innerHTML = activeBrand.rounds.map((r, i) => `
+    <div class="tab ${activeRound?.name === r.name ? 'active' : ''}" onclick="selectRound(activeBrand.rounds[${i}])">${r.name}</div>
+  `).join('') + `<div class="tab-add" onclick="openRoundModal()">+ 회차 추가</div>`;
+}
+function selectRound(round) {
+  activeRound = round;
+  renderTabs();
+  loadRound();
+}
+function openRoundModal() { document.getElementById('roundModal').classList.remove('hidden'); document.getElementById('rName').focus(); }
+function closeRoundModal() { document.getElementById('roundModal').classList.add('hidden'); document.getElementById('rName').value = ''; }
+async function saveRound() {
+  const name = document.getElementById('rName').value.trim();
+  if (!name) return;
+  if (activeBrand.rounds.find(r => r.name === name)) { showToast('이미 존재하는 회차예요'); return; }
+  const sheetName = `${activeBrand.name}__${name}`;
+  await addSheet(sheetName);
+  await sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]);
+  activeBrand.rounds.push({name});
+  activeRound = {name};
+  closeRoundModal();
+  renderTabs();
+  loadRound();
+  showToast('회차가 추가됐어요!');
+}
+
+// ─── LOAD DATA ───
+async function loadRound() {
+  if (!activeBrand || !activeRound) return;
+  showContent('<div class="loading">불러오는 중...</div>');
+  const sheetName = `${activeBrand.name}__${activeRound.name}`;
+  const rows = await sheetsGet(sheetName);
+  const data = rows.slice(1);
+  renderTable(data);
+}
+
+function renderTable(data) {
+  const total = data.length;
+  const done = data.filter(r => r[2] === '완료').length;
+  const pending = total - done;
+
+  const statsHtml = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">총 참여자</div><div class="stat-value">${total}</div></div>
+      <div class="stat-card"><div class="stat-label">작성 완료</div><div class="stat-value green">${done}</div></div>
+      <div class="stat-card"><div class="stat-label">미완료</div><div class="stat-value orange">${pending}</div></div>
+    </div>`;
+
+  const rowsHtml = data.length === 0
+    ? `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">참여자를 추가해주세요.</td></tr>`
+    : data.map((r, i) => {
+        const name = r[0] || '';
+        const url = r[1] || '';
+        const status = r[2] || '대기중';
+        const note = r[3] || '';
+        return `
+          <tr>
+            <td class="td-num">${i+1}</td>
+            <td class="td-name">${name}</td>
+            <td class="td-url">${url ? `<a href="${url}" target="_blank">${url}</a>` : '<span class="no-url">미작성</span>'}</td>
+            <td><span class="badge ${status==='완료'?'badge-done':'badge-pending'}">${status}</span></td>
+            <td class="td-note">${note ? `<span class="note-tag">${note}</span>` : '<span style="color:var(--text-hint)">—</span>'}</td>
+            <td>
+              <div class="td-actions">
+                <button class="btn btn-sm" onclick="openEditModal(${i})">수정</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteRow(${i})">삭제</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+
+  showContent(`
+    ${statsHtml}
+    <div class="table-card">
+      <div class="table-toolbar">
+        <span class="table-toolbar-title">${activeBrand.name} · ${activeRound.name} 참여자 목록</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px">#</th>
+            <th>이름</th>
+            <th>작성 URL</th>
+            <th style="width:80px">상태</th>
+            <th>특이사항</th>
+            <th style="width:100px"></th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `);
+
+  // cache data for edit
+  window._currentData = data;
+}
+
+// ─── PARTICIPANT MODAL ───
+function openAddModal() {
+  editingRow = null;
+  document.getElementById('participantModalTitle').textContent = '참여자 추가';
+  document.getElementById('pName').value = '';
+  document.getElementById('pUrl').value = '';
+  document.getElementById('pStatus').value = '대기중';
+  document.getElementById('pNote').value = '';
+  document.getElementById('participantModal').classList.remove('hidden');
+  document.getElementById('pName').focus();
+}
+function openEditModal(idx) {
+  const row = window._currentData[idx];
+  editingRow = idx;
+  document.getElementById('participantModalTitle').textContent = '참여자 수정';
+  document.getElementById('pName').value = row[0] || '';
+  document.getElementById('pUrl').value = row[1] || '';
+  document.getElementById('pStatus').value = row[2] || '대기중';
+  document.getElementById('pNote').value = row[3] || '';
+  document.getElementById('participantModal').classList.remove('hidden');
+}
+function closeParticipantModal() { document.getElementById('participantModal').classList.add('hidden'); }
+
+async function saveParticipant() {
+  const name = document.getElementById('pName').value.trim();
+  if (!name) { document.getElementById('pName').focus(); return; }
+  const url = document.getElementById('pUrl').value.trim();
+  const status = document.getElementById('pStatus').value;
+  const note = document.getElementById('pNote').value.trim();
+  const sheetName = `${activeBrand.name}__${activeRound.name}`;
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.textContent = '저장 중...'; saveBtn.disabled = true;
+
+  if (editingRow === null) {
+    await sheetsAppend(sheetName, [[name, url, status, note]]);
+    showToast('참여자가 추가됐어요!');
+  } else {
+    const rowNum = editingRow + 2;
+    await sheetsUpdate(sheetName, rowNum, [name, url, status, note]);
+    showToast('수정됐어요!');
+  }
+  saveBtn.textContent = '저장'; saveBtn.disabled = false;
+  closeParticipantModal();
+  loadRound();
+}
+
+async function deleteRow(idx) {
+  if (!confirm('삭제할까요?')) return;
+  const sheetName = `${activeBrand.name}__${activeRound.name}`;
+  const rowNum = idx + 2;
+  await deleteRowApi(sheetName, rowNum);
+  showToast('삭제됐어요.');
+  loadRound();
+}
+
+// ─── EXPORT ───
+function exportCSV() {
+  if (!window._currentData || !activeBrand || !activeRound) return;
+  const header = ['이름','작성 URL','상태','특이사항'];
+  const rows = [header, ...window._currentData.map(r => [r[0]||'',r[1]||'',r[2]||'',r[3]||''])];
+  const csv = rows.map(r => r.map(c => `"${c.replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${activeBrand.name}_${activeRound.name}.csv`;
+  a.click();
+}
+
+// ─── UTILS ───
+function showContent(html) { document.getElementById('mainContent').innerHTML = html; }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// keyboard close modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeParticipantModal();
+    closeBrandModal();
+    closeRoundModal();
+  }
+});
+
+init();
+</script>
+</body>
+</html>
