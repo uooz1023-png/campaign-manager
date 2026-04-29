@@ -309,10 +309,16 @@ async function init() {
     brands = [];
     for (const name of names) {
       if (!name.includes('__')) continue;
-      const [bName, rName] = name.split('__');
+      const parts = name.split('__');
+      let bName, manager, rName;
+      if (parts.length >= 3) {
+        bName = parts[0]; manager = parts[1]; rName = parts[2];
+      } else {
+        bName = parts[0]; manager = ''; rName = parts[1];
+      }
       let brand = brands.find(b => b.name === bName);
       if (!brand) {
-        brand = {name: bName, manager: '', rounds: [], color: brands.length % 6};
+        brand = {name: bName, manager, rounds: [], color: brands.length % 6};
         brands.push(brand);
       }
       if (!brand.rounds.find(r => r.name === rName)) {
@@ -365,7 +371,7 @@ async function saveBrand() {
   selectBrand(brand);
   showToast('브랜드가 추가됐어요!');
   // 백그라운드 저장
-  const sheetName = `${name}__1회차`;
+  const sheetName = manager ? `${name}__${manager}__1회차` : `${name}__1회차`;
   addSheet(sheetName).then(() => sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]));
 }
 
@@ -374,7 +380,8 @@ async function deleteBrand(idx) {
   if (!confirm(`"${brand.name}" 브랜드와 모든 회차 데이터를 삭제할까요?\n이 작업은 되돌릴 수 없어요.`)) return;
   // delete all sheets for this brand
   for (const round of brand.rounds) {
-    await api({action:'deleteSheet', sheet:`${brand.name}__${round.name}`});
+    const sName = brand.manager ? `${brand.name}__${brand.manager}__${round.name}` : `${brand.name}__${round.name}`;
+    await api({action:'deleteSheet', sheet: sName});
   }
   brands.splice(idx, 1);
   if (activeBrand?.name === brand.name) {
@@ -409,7 +416,7 @@ async function saveRound() {
   const name = document.getElementById('rName').value.trim();
   if (!name) return;
   if (activeBrand.rounds.find(r => r.name === name)) { showToast('이미 존재하는 회차예요'); return; }
-  const sheetName = `${activeBrand.name}__${name}`;
+  const sheetName = activeBrand.manager ? `${activeBrand.name}__${activeBrand.manager}__${name}` : `${activeBrand.name}__${name}`;
   await addSheet(sheetName);
   await sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]);
   activeBrand.rounds.push({name});
@@ -424,7 +431,7 @@ async function saveRound() {
 async function loadRound() {
   if (!activeBrand || !activeRound) return;
   showContent('<div class="loading">불러오는 중...</div>');
-  const sheetName = `${activeBrand.name}__${activeRound.name}`;
+  const sheetName = activeBrand.manager ? `${activeBrand.name}__${activeBrand.manager}__${activeRound.name}` : `${activeBrand.name}__${activeRound.name}`;
   const rows = await sheetsGet(sheetName);
   const data = rows.slice(1);
   renderTable(data);
@@ -520,7 +527,7 @@ async function saveParticipant() {
   const url = document.getElementById('pUrl').value.trim();
   const status = document.getElementById('pStatus').value;
   const note = document.getElementById('pNote').value.trim();
-  const sheetName = `${activeBrand.name}__${activeRound.name}`;
+  const sheetName = activeBrand.manager ? `${activeBrand.name}__${activeBrand.manager}__${activeRound.name}` : `${activeBrand.name}__${activeRound.name}`;
 
   // 화면 먼저 즉시 반영
   if (editingRow === null) {
@@ -544,7 +551,7 @@ async function saveParticipant() {
 
 async function deleteRow(idx) {
   if (!confirm('삭제할까요?')) return;
-  const sheetName = `${activeBrand.name}__${activeRound.name}`;
+  const sheetName = activeBrand.manager ? `${activeBrand.name}__${activeBrand.manager}__${activeRound.name}` : `${activeBrand.name}__${activeRound.name}`;
   const rowNum = idx + 2;
   // 화면 먼저 즉시 반영
   window._currentData.splice(idx, 1);
