@@ -229,6 +229,10 @@
         <label class="form-label">브랜드 이름 *</label>
         <input class="form-input" id="bName" placeholder="예: 직화명가" />
       </div>
+      <div class="form-group">
+        <label class="form-label">담당자 이름</label>
+        <input class="form-input" id="bManager" placeholder="예: 홍길동" />
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeBrandModal()">취소</button>
@@ -308,7 +312,7 @@ async function init() {
       const [bName, rName] = name.split('__');
       let brand = brands.find(b => b.name === bName);
       if (!brand) {
-        brand = {name: bName, rounds: [], color: brands.length % 6};
+        brand = {name: bName, manager: '', rounds: [], color: brands.length % 6};
         brands.push(brand);
       }
       if (!brand.rounds.find(r => r.name === rName)) {
@@ -331,7 +335,7 @@ function renderBrandList() {
       <div class="brand-dot dot-${b.color}"></div>
       <div class="brand-info">
         <div class="brand-name">${b.name}</div>
-        <div class="brand-sub">${b.rounds.length}회차</div>
+        <div class="brand-sub">${b.manager ? b.manager + " · " : ""}${b.rounds.length}회차</div>
       </div>
       <button class="brand-del-btn" onclick="event.stopPropagation(); deleteBrand(${i})" title="브랜드 삭제">×</button>
     </div>
@@ -349,19 +353,20 @@ function selectBrand(brand) {
   else showContent('<div class="empty-state"><p>회차를 추가해주세요.</p></div>');
 }
 function openBrandModal() { document.getElementById('brandModal').classList.remove('hidden'); document.getElementById('bName').focus(); }
-function closeBrandModal() { document.getElementById('brandModal').classList.add('hidden'); document.getElementById('bName').value = ''; }
+function closeBrandModal() { document.getElementById('brandModal').classList.add('hidden'); document.getElementById('bName').value = ''; document.getElementById('bManager').value = ''; }
 async function saveBrand() {
   const name = document.getElementById('bName').value.trim();
   if (!name) return;
   if (brands.find(b => b.name === name)) { showToast('이미 존재하는 브랜드예요'); return; }
-  const sheetName = `${name}__1회차`;
-  await addSheet(sheetName);
-  await sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]);
-  const brand = {name, rounds:[{name:'1회차'}], color: brands.length % 6};
+  const manager = document.getElementById('bManager').value.trim();
+  const brand = {name, manager, rounds:[{name:'1회차'}], color: brands.length % 6};
   brands.push(brand);
   closeBrandModal();
   selectBrand(brand);
   showToast('브랜드가 추가됐어요!');
+  // 백그라운드 저장
+  const sheetName = `${name}__1회차`;
+  addSheet(sheetName).then(() => sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]));
 }
 
 async function deleteBrand(idx) {
@@ -516,29 +521,37 @@ async function saveParticipant() {
   const status = document.getElementById('pStatus').value;
   const note = document.getElementById('pNote').value.trim();
   const sheetName = `${activeBrand.name}__${activeRound.name}`;
-  const saveBtn = document.getElementById('saveBtn');
-  saveBtn.textContent = '저장 중...'; saveBtn.disabled = true;
 
+  // 화면 먼저 즉시 반영
   if (editingRow === null) {
-    await sheetsAppend(sheetName, [[name, url, status, note]]);
+    window._currentData = [...(window._currentData || []), [name, url, status, note]];
     showToast('참여자가 추가됐어요!');
   } else {
-    const rowNum = editingRow + 2;
-    await sheetsUpdate(sheetName, rowNum, [name, url, status, note]);
+    window._currentData[editingRow] = [name, url, status, note];
     showToast('수정됐어요!');
   }
-  saveBtn.textContent = '저장'; saveBtn.disabled = false;
   closeParticipantModal();
-  loadRound();
+  renderTable(window._currentData);
+
+  // 백그라운드에서 시트에 저장
+  if (editingRow === null) {
+    sheetsAppend(sheetName, [[name, url, status, note]]);
+  } else {
+    const rowNum = editingRow + 2;
+    sheetsUpdate(sheetName, rowNum, [name, url, status, note]);
+  }
 }
 
 async function deleteRow(idx) {
   if (!confirm('삭제할까요?')) return;
   const sheetName = `${activeBrand.name}__${activeRound.name}`;
   const rowNum = idx + 2;
-  await deleteRowApi(sheetName, rowNum);
+  // 화면 먼저 즉시 반영
+  window._currentData.splice(idx, 1);
+  renderTable(window._currentData);
   showToast('삭제됐어요.');
-  loadRound();
+  // 백그라운드에서 시트 삭제
+  deleteRowApi(sheetName, rowNum);
 }
 
 // ─── EXPORT ───
