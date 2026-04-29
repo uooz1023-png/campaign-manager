@@ -448,15 +448,17 @@ async function saveRound() {
   const name = document.getElementById('rName').value.trim();
   if (!name) return;
   if (activeBrand.rounds.find(r => r.name === name)) { showToast('이미 존재하는 회차예요'); return; }
-  const sheetName = activeBrand.manager ? `${activeBrand.name}__${activeBrand.manager}__${name}` : `${activeBrand.name}__${name}`;
-  await addSheet(sheetName);
-  await sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]);
+  // 화면 먼저 즉시 반영
   activeBrand.rounds.push({name});
   activeRound = {name};
+  roundCache[`${activeBrand.name}__${name}`] = [];
+  const sheetName = activeBrand.manager ? `${activeBrand.name}__${activeBrand.manager}__${name}` : `${activeBrand.name}__${name}`;
   closeRoundModal();
   renderTabs();
   loadRound();
   showToast('회차가 추가됐어요!');
+  // 백그라운드에서 시트 생성
+  addSheet(sheetName).then(() => sheetsAppend(sheetName, [['이름','작성 URL','상태','특이사항']]));
 }
 
 // ─── LOAD DATA ───
