@@ -135,6 +135,17 @@
   .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 10px 16px; border-radius: var(--radius); font-size: 13px; z-index: 2000; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateY(0); }
 
+  /* Name clickable */
+  .td-name-btn { background: none; border: none; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; padding: 0; text-align: left; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--border-hover); }
+  .td-name-btn:hover { color: var(--accent); text-decoration-color: var(--accent); }
+
+  /* History modal */
+  .history-item { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+  .history-item:last-child { border-bottom: none; }
+  .history-brand { font-size: 11px; color: var(--text-muted); }
+  .history-url { font-size: 11px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
   /* Brand delete btn */
   .brand-del-btn { display: none; background: none; border: none; color: var(--text-hint); font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1; border-radius: 4px; flex-shrink: 0; }
   .brand-item:hover .brand-del-btn { display: block; }
@@ -258,6 +269,17 @@
       <button class="btn" onclick="closeRoundModal()">취소</button>
       <button class="btn btn-primary" onclick="saveRound()">추가</button>
     </div>
+  </div>
+</div>
+
+<!-- 참여자 내역 모달 -->
+<div class="modal-overlay hidden" id="historyModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title" id="historyModalTitle">참여 내역</span>
+      <button class="modal-close" onclick="closeHistoryModal()">×</button>
+    </div>
+    <div id="historyModalBody" style="max-height:400px;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -513,7 +535,7 @@ function renderTable(data) {
         return `
           <tr>
             <td class="td-num">${i+1}</td>
-            <td class="td-name">${name}</td>
+            <td class="td-name"><button class="td-name-btn" onclick="openHistoryModal(${JSON.stringify(name)}, ${JSON.stringify(url)})">${name}</button></td>
             <td class="td-url">${url ? `<a href="${url}" target="_blank">${url}</a>` : '<span class="no-url">미작성</span>'}</td>
             <td><span class="badge ${status==='완료'?'badge-done':'badge-pending'}">${status}</span></td>
             <td class="td-note">${note ? `<span class="note-tag">${note}</span>` : '<span style="color:var(--text-hint)">—</span>'}</td>
@@ -630,6 +652,60 @@ function exportCSV() {
   a.click();
 }
 
+// ─── HISTORY ───
+function extractNaverId(url) {
+  // blog.naver.com/아이디/... 형태에서 아이디 추출
+  try {
+    const m = url.match(/blog\.naver\.com\/([^/?#]+)/);
+    return m ? m[1].toLowerCase() : null;
+  } catch { return null; }
+}
+
+function openHistoryModal(name, url) {
+  const naverId = extractNaverId(url);
+  const title = naverId ? `${name} (${naverId}) 참여 내역` : `${name} 참여 내역`;
+  document.getElementById('historyModalTitle').textContent = title;
+
+  // 캐시에서 전체 검색
+  const results = [];
+  for (const [key, data] of Object.entries(roundCache)) {
+    const parts = key.split('__');
+    const brandName = parts[0];
+    const roundName = parts[parts.length - 1];
+    for (const row of data) {
+      const rName = row[0] || '';
+      const rUrl = row[1] || '';
+      const rStatus = row[2] || '';
+      const rNote = row[3] || '';
+      const rNaverId = extractNaverId(rUrl);
+      // 네이버 블로그면 ID로 비교, 아니면 이름으로 비교
+      const match = naverId && rNaverId ? naverId === rNaverId : rName === name;
+      if (match) results.push({brandName, roundName, rName, rUrl, rStatus, rNote});
+    }
+  }
+
+  const body = document.getElementById('historyModalBody');
+  if (results.length === 0) {
+    body.innerHTML = '<div class="history-empty">다른 회차 참여 내역이 없어요.<br><small style="color:var(--text-hint)">※ 아직 로드되지 않은 회차는 검색되지 않을 수 있어요</small></div>';
+  } else {
+    body.innerHTML = results.map(r => `
+      <div class="history-item">
+        <div class="history-brand">
+          <span style="font-weight:500">${r.brandName}</span> · ${r.roundName}
+          <span class="badge ${r.rStatus==='완료'?'badge-done':'badge-pending'}" style="margin-left:6px">${r.rStatus||'대기중'}</span>
+        </div>
+        ${r.rUrl ? `<a href="${r.rUrl}" target="_blank" class="history-url">${r.rUrl}</a>` : '<span style="font-size:11px;color:var(--text-hint)">URL 없음</span>'}
+        ${r.rNote ? `<span style="font-size:11px;color:var(--text-muted)">${r.rNote}</span>` : ''}
+      </div>
+    `).join('');
+  }
+  document.getElementById('historyModal').classList.remove('hidden');
+}
+
+function closeHistoryModal() {
+  document.getElementById('historyModal').classList.add('hidden');
+}
+
 // ─── UTILS ───
 function showContent(html) { document.getElementById('mainContent').innerHTML = html; }
 function showToast(msg) {
@@ -645,6 +721,7 @@ document.addEventListener('keydown', e => {
     closeParticipantModal();
     closeBrandModal();
     closeRoundModal();
+    closeHistoryModal();
   }
 });
 
