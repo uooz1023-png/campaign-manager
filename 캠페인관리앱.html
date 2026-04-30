@@ -535,7 +535,7 @@ function renderTable(data) {
         return `
           <tr>
             <td class="td-num">${i+1}</td>
-            <td class="td-name"><button class="td-name-btn" onclick="openHistoryModal(${JSON.stringify(name)}, ${JSON.stringify(url)})">${name}</button></td>
+            <td class="td-name"><button class="td-name-btn" onclick="openHistoryModal(this)" data-name="${name.replace(/"/g,'&quot;')}" data-url="${url.replace(/"/g,'&quot;')}">${name}</button></td>
             <td class="td-url">${url ? `<a href="${url}" target="_blank">${url}</a>` : '<span class="no-url">미작성</span>'}</td>
             <td><span class="badge ${status==='완료'?'badge-done':'badge-pending'}">${status}</span></td>
             <td class="td-note">${note ? `<span class="note-tag">${note}</span>` : '<span style="color:var(--text-hint)">—</span>'}</td>
@@ -661,7 +661,9 @@ function extractNaverId(url) {
   } catch { return null; }
 }
 
-function openHistoryModal(name, url) {
+function openHistoryModal(btn) {
+  const name = btn.dataset.name;
+  const url = btn.dataset.url;
   const naverId = extractNaverId(url);
   const title = naverId ? `${name} (${naverId}) 참여 내역` : `${name} 참여 내역`;
   document.getElementById('historyModalTitle').textContent = title;
